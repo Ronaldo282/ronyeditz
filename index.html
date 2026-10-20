@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Web Video Studio</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Montserrat:wght@800&family=Pacifico&family=Roboto+Mono:wght@700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#16171a">
+  <link rel="apple-touch-icon" href="icon-192.png">
+</head>
+<body class="font-sans">
+  <header class="h-14 shrink-0 border-b border-gray-800 bg-[#16171a] flex items-center justify-between px-6">
+    <span class="text-lg font-bold text-white">🎬 WebVideoStudio</span>
+    <button id="exportBtn" disabled class="bg-[#ffee65] text-black font-semibold px-4 py-1.5 rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed">💾 Baixar vídeo</button>
+  </header>
+
+  <div class="app-shell">
+    <aside class="app-sidebar p-4 space-y-5 text-xs">
+      <div>
+        <h3 class="font-semibold text-gray-400 mb-2">Formato do vídeo</h3>
+        <select id="formatSel" class="field">
+          <option value="16:9">16:9 · YouTube (horizontal)</option>
+          <option value="9:16">9:16 · Shorts / Reels / TikTok</option>
+          <option value="1:1">1:1 · Quadrado</option>
+          <option value="4:5">4:5 · Feed Instagram</option>
+        </select>
+      </div>
+
+      <div>
+        <h3 class="font-semibold text-gray-400 mb-2">Layout rápido</h3>
+        <div class="grid grid-cols-2 gap-2 mb-2">
+          <button id="layoutStack" class="btn">📱 Reação empilhada</button>
+          <button id="layoutCorner" class="btn">💻 Câmera no canto</button>
+        </div>
+        <div class="grid grid-cols-3 gap-2 mb-2">
+          <button id="greenLeft" class="btn !px-1">🟩 Esquerda</button>
+          <button id="greenCenter" class="btn !px-1">🟩 Centro</button>
+          <button id="greenRight" class="btn !px-1">🟩 Direita</button>
+        </div>
+        <select id="bgSel" class="field">
+          <option value="black">Fundo preto</option>
+          <option value="blur">Fundo desfocado</option>
+        </select>
+      </div>
+
+      <div>
+        <h3 class="font-semibold text-gray-400 mb-2">Adicionar</h3>
+        <div class="grid grid-cols-2 gap-2">
+          <button id="screenBtn" class="btn">🖥 Tela</button>
+          <button id="camBtn" class="btn">📷 Câmera</button>
+          <label class="btn text-center cursor-pointer col-span-2">📁 Imagens e vídeos (vários)
+            <input type="file" id="mediaInput" accept="image/*,video/*" multiple class="hidden">
+          </label>
+        </div>
+        <input id="textInput" placeholder="Texto do título…" class="field mt-2">
+        <button id="addTextBtn" class="btn !bg-[#2962ff] mt-2 w-full">➕ Inserir texto no topo</button>
+      </div>
+
+      <div id="props" class="hidden space-y-2 border border-gray-800 rounded-md p-3">
+        <h3 class="font-semibold text-gray-400">Item selecionado</h3>
+        <div id="textProps" class="space-y-2">
+          <input id="pText" class="field">
+          <select id="pStyle" class="field">
+            <option value="">Aplicar estilo pronto…</option>
+            <option value="std">Padrão (sombra)</option>
+            <option value="meme">Meme (contorno preto)</option>
+            <option value="headline">Manchete (caixa amarela)</option>
+            <option value="caption">Legenda (caixa escura)</option>
+          </select>
+          <select id="pFont" class="field">
+            <option value="Anton" style="font-family:Anton">Anton — impacto</option>
+            <option value="Bebas Neue" style="font-family:'Bebas Neue'">Bebas Neue — título</option>
+            <option value="Montserrat" style="font-family:Montserrat;font-weight:800">Montserrat — moderna</option>
+            <option value="Pacifico" style="font-family:Pacifico">Pacifico — manuscrita</option>
+            <option value="Roboto Mono" style="font-family:'Roboto Mono'">Roboto Mono — código</option>
+          </select>
+          <div class="flex items-center gap-2">
+            <input type="range" id="pSize" min="16" max="260" class="flex-1 accent-[#2962ff]">
+            <input type="color" id="pColor" class="w-8 h-7 bg-transparent">
+          </div>
+        </div>
+        <div id="camProps" class="flex gap-2 items-center">
+          <select id="pShape" class="field"><option value="circle">Círculo</option><option value="round">Arredondada</option><option value="rect">Retângulo</option></select>
+          <label class="flex items-center gap-1 whitespace-nowrap"><input type="checkbox" id="pMirror"> Espelhar</label>
+        </div>
+        <label class="flex items-center gap-2">Opacidade <input type="range" id="pOpacity" min="10" max="100" class="flex-1 accent-[#2962ff]"></label>
+        <label id="volProps" class="flex items-center gap-2">Volume <input type="range" id="pVol" min="0" max="100" class="flex-1 accent-[#2962ff]"></label>
+        <div id="chromaProps" class="space-y-1">
+          <label class="flex items-center gap-2"><input type="checkbox" id="pChroma"> Remover fundo verde</label>
+          <label class="flex items-center gap-2">Força <input type="range" id="pChromaThr" min="10" max="120" value="90" class="flex-1 accent-[#2962ff]"></label>
+        </div>
+        <div class="grid grid-cols-3 gap-2">
+          <button id="dupBtn" class="btn !px-1">⧉ Duplicar</button>
+          <button id="frontBtn" class="btn !px-1">⬆ Frente</button>
+          <button id="backBtn" class="btn !px-1">⬇ Trás</button>
+        </div>
+        <p class="text-gray-500">Arraste no vídeo para mover; use o quadrado azul para redimensionar.</p>
+        <button id="delBtn" class="btn !bg-red-900/50 w-full">🗑 Remover</button>
+      </div>
+
+      <div>
+        <h3 class="font-semibold text-gray-400 mb-2">Gravação</h3>
+        <label class="flex justify-between mb-2"><span>Incluir microfone</span><input type="checkbox" id="micToggle" checked></label>
+        <button id="recBtn" class="btn !bg-[#2962ff] w-full !py-2.5 font-semibold">🔴 Gravar</button>
+      </div>
+    </aside>
+
+    <main>
+      <div id="canvasWrap"><canvas id="studioCanvas" width="1280" height="720"></canvas></div>
+      <section id="tl">
+        <div id="tlBar">
+          <button id="rewBtn" class="btn !px-2">⏮</button>
+          <button id="playBtn" class="btn !px-3">▶</button>
+          <button id="undoBtn" class="btn !px-2" title="Desfazer (Ctrl+Z)">↶</button>
+          <button id="redoBtn" class="btn !px-2" title="Refazer (Ctrl+Shift+Z)">↷</button>
+          <span id="timeTxt">00:00 / 00:15</span>
+          <span class="text-gray-500 hidden sm:inline">Arraste os blocos para mudar quando aparecem; puxe a ponta direita para a duração.</span>
+        </div>
+        <div id="tlScroll">
+          <div id="tracks"><div id="ruler"></div><div id="rows"></div><div id="head"></div></div>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="app.js"></script>
+  <script>if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js'));</script>
+</body>
+</html>

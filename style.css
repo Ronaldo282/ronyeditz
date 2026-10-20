@@ -1,0 +1,38 @@
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #101114; color: #e5e7eb; overflow: hidden; }
+body { display: flex; flex-direction: column; }
+
+.app-shell { display: flex; flex: 1; min-height: 0; }
+.app-sidebar { width: 19rem; min-width: 19rem; background: #16171a; border-right: 1px solid #1f2937; overflow-y: auto; }
+main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+.btn { background: #1f2937; color: #fff; border-radius: 6px; padding: 8px 12px; font-size: 12px; font-weight: 500; transition: background .15s; }
+.btn:hover { background: #374151; }
+.field { width: 100%; background: #101114; border: 1px solid #374151; border-radius: 6px; padding: 6px 8px; color: #e5e7eb; font-size: 12px; }
+:focus-visible { outline: 2px solid #ffee65; outline-offset: 1px; }
+
+#canvasWrap { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 12px; }
+#studioCanvas { touch-action: none; background: #000; border-radius: 6px; box-shadow: 0 20px 40px rgba(0, 0, 0, .6); cursor: pointer; }
+
+/* Timeline */
+#tl { height: 210px; flex-shrink: 0; border-top: 1px solid #1f2937; background: #16171a; display: flex; flex-direction: column; }
+#tlBar { display: flex; gap: 10px; align-items: center; padding: 6px 12px; font-size: 12px; }
+#tlScroll { flex: 1; overflow: auto; }
+#tracks { position: relative; min-height: 100%; }
+#ruler { height: 22px; cursor: col-resize; touch-action: none; border-bottom: 1px solid #1f2937; background: repeating-linear-gradient(90deg, #4b5563 0 1px, transparent 1px 60px); }
+.row { height: 30px; position: relative; border-bottom: 1px solid rgba(31, 41, 55, .5); }
+.clip { position: absolute; top: 3px; height: 24px; padding: 3px 12px 0 6px; border-radius: 5px; background: #2962ff; color: #fff; font-size: 11px; white-space: nowrap; overflow: hidden; cursor: grab; touch-action: none; user-select: none; }
+.clip.text { background: #b8860b; }
+.clip.image { background: #0f766e; }
+.clip.cam { background: #9333ea; }
+.clip.screen { background: #be185d; }
+.clip.sel { outline: 2px solid #ffee65; }
+.clip i { position: absolute; right: 0; top: 0; bottom: 0; width: 9px; cursor: ew-resize; background: rgba(255, 255, 255, .35); }
+#head { position: absolute; top: 0; bottom: 0; width: 2px; background: #ffee65; pointer-events: none; }
+
+@media (max-width: 1024px) {
+  html, body { overflow: auto; height: auto; }
+  .app-shell { flex-direction: column; }
+  .app-sidebar { width: 100%; min-width: 0; border-right: 0; border-bottom: 1px solid #1f2937; }
+  #canvasWrap { min-height: 55vh; }
+}
