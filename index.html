@@ -54,6 +54,9 @@
           <label class="btn text-center cursor-pointer col-span-2">📁 Imagens e vídeos (vários)
             <input type="file" id="mediaInput" accept="image/*,video/*" multiple class="hidden">
           </label>
+          <label class="btn text-center cursor-pointer col-span-2">🎵 Música / áudio do celular
+            <input type="file" id="audioInput" accept="audio/*" multiple class="hidden">
+          </label>
         </div>
         <input id="textInput" placeholder="Texto do título…" class="field mt-2">
         <button id="addTextBtn" class="btn !bg-[#2962ff] mt-2 w-full">➕ Inserir texto no topo</button>
@@ -88,6 +91,25 @@
         </div>
         <label class="flex items-center gap-2">Opacidade <input type="range" id="pOpacity" min="10" max="100" class="flex-1 accent-[#2962ff]"></label>
         <label id="volProps" class="flex items-center gap-2">Volume <input type="range" id="pVol" min="0" max="100" class="flex-1 accent-[#2962ff]"></label>
+        <div id="fxProps" class="space-y-1">
+          <div class="grid grid-cols-2 gap-2">
+            <select id="pTrans" class="field">
+              <option value="">Transição: nenhuma</option>
+              <option value="fade">Aparecer (fade)</option>
+              <option value="pop">Pop (cresce)</option>
+              <option value="up">Sobe de baixo</option>
+              <option value="left">Vem da esquerda</option>
+              <option value="right">Vem da direita</option>
+            </select>
+            <select id="pZoom" class="field">
+              <option value="">Zoom: nenhum</option>
+              <option value="in">Zoom in</option>
+              <option value="out">Zoom out</option>
+              <option value="pulse">Pulsar</option>
+            </select>
+          </div>
+          <label class="flex items-center gap-2">Zoom <input type="range" id="pZoomAmt" min="10" max="100" value="30" class="flex-1 accent-[#2962ff]"></label>
+        </div>
         <div id="chromaProps" class="space-y-1">
           <label class="flex items-center gap-2"><input type="checkbox" id="pChroma"> Remover fundo verde</label>
           <label class="flex items-center gap-2">Força <input type="range" id="pChromaThr" min="10" max="120" value="90" class="flex-1 accent-[#2962ff]"></label>
@@ -103,8 +125,17 @@
 
       <div>
         <h3 class="font-semibold text-gray-400 mb-2">Gravação</h3>
+        <select id="qualSel" class="field mb-2">
+          <option value="high">Qualidade alta · 1080p</option>
+          <option value="mid" selected>Qualidade média · 720p</option>
+          <option value="low">Qualidade leve · 480p (arquivo pequeno)</option>
+        </select>
+        <select id="fileSel" class="field mb-2">
+          <option value="webm">Arquivo WebM</option>
+          <option value="mp4">Arquivo MP4 (se o navegador permitir)</option>
+        </select>
         <label class="flex justify-between mb-2"><span>Incluir microfone</span><input type="checkbox" id="micToggle" checked></label>
-        <button id="recBtn" class="btn !bg-[#2962ff] w-full !py-2.5 font-semibold">🔴 Gravar</button>
+        <button id="recBtn" class="btn !bg-[#2962ff] w-full !py-2.5 font-semibold">🔴 Gravar (Enter)</button>
       </div>
     </aside>
 

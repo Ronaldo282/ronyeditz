@@ -2,7 +2,7 @@ const $ = id => document.getElementById(id);
 const cv = $('studioCanvas'), ctx = cv.getContext('2d');
 const FORMATS = { '16:9': [1280, 720], '9:16': [720, 1280], '1:1': [1000, 1000], '4:5': [864, 1080] };
 const FONTS = { 'Anton': 400, 'Bebas Neue': 400, 'Montserrat': 800, 'Pacifico': 400, 'Roboto Mono': 700 };
-const ICON = { text: '🔤', image: '🖼', video: '🎞', cam: '📷', screen: '🖥' };
+const ICON = { text: '🔤', image: '🖼', video: '🎞', cam: '📷', screen: '🖥', audio: '🎵' };
 const PX = 60; // pixels por segundo na timeline
 
 let W = 1280, H = 720, layers = [], sel = null, t = 0, playing = false, recording = false;
@@ -11,6 +11,8 @@ let ac, dest, mr, chunks = [], micStream;
 const wired = new WeakSet();
 const STYLES = { std: { color: '#ffffff', stroke: 0, box: null }, meme: { color: '#ffffff', stroke: 1, box: null }, headline: { color: '#000000', stroke: 0, box: '#ffee65' }, caption: { color: '#ffffff', stroke: 0, box: 'rgba(0,0,0,.7)' } };
 let hist = [], hi = -1, bgMode = 'black', counting = false;
+let resScale = 1, Q = { res: 1, bps: 6e6 }, ext = 'webm';
+const QUAL = { high: { res: 1.5, bps: 12e6 }, mid: { res: 1, bps: 6e6 }, low: { res: 0.667, bps: 2e6 } };
 const bgc = document.createElement('canvas');
 function snap() { hist = hist.slice(0, hi + 1); hist.push(layers.map(l => ({ ...l }))); if (hist.length > 60) hist.shift(); hi = hist.length - 1; }
 function restore(i) {
@@ -38,7 +40,7 @@ function fit() {
 new ResizeObserver(fit).observe($('canvasWrap'));
 
 $('formatSel').onchange = e => {
-  const [w, h] = FORMATS[e.target.value], s = Math.min(w / W, h / H);
+  const [w, h] = FORMATS[e.target.value].map(v => Math.round(v * resScale / 2) * 2), s = Math.min(w / W, h / H);
   layers.forEach(l => {
     l.x *= w / W; l.y *= h / H;
     if (l.kind === 'text') l.size *= s; else { l.w *= s; l.h *= s; }
@@ -99,7 +101,7 @@ $('camBtn').onclick = async () => {
 
 $('addTextBtn').onclick = () => {
   const s = $('textInput').value.trim() || 'Seu texto aqui';
-  const l = addLayer({ kind: 'text', name: s, text: s, font: 'Anton', size: Math.round(H * 0.07), dur: 5, ...STYLES.meme });
+  const l = addLayer({ kind: 'text', name: s, text: s, font: 'Anton', size: Math.round(H * 0.07), dur: 5, trans: 'pop', ...STYLES.meme });
   l.y = H * 0.12; // já nasce no topo
   $('textInput').value = '';
 };
@@ -111,13 +113,15 @@ function select(l) {
   $('props').classList.toggle('hidden', !l);
   $('textProps').classList.toggle('hidden', !l || l.kind !== 'text');
   $('camProps').classList.toggle('hidden', !l || l.kind !== 'cam');
-  $('volProps').classList.toggle('hidden', !l || l.kind !== 'video');
+  $('volProps').classList.toggle('hidden', !l || !['video', 'audio'].includes(l.kind));
   $('chromaProps').classList.toggle('hidden', !l || !['cam', 'video'].includes(l.kind));
+  $('fxProps').classList.toggle('hidden', !l || l.kind === 'audio');
   syncProps();
 }
 function syncProps() {
   if (!sel) return;
   $('pOpacity').value = (sel.opacity ?? 1) * 100; $('pVol').value = (sel.vol ?? 1) * 100;
+  $('pTrans').value = sel.trans || ''; $('pZoom').value = sel.zoom || ''; $('pZoomAmt').value = (sel.zoomAmt ?? 0.3) * 100;
   $('pChroma').checked = !!sel.chroma; $('pChromaThr').value = 130 - (sel.chromaThr ?? 40);
   if (sel.kind === 'cam') { $('pShape').value = sel.shape; $('pMirror').checked = !!sel.mirror; }
   if (sel.kind !== 'text') return;
@@ -167,7 +171,8 @@ addEventListener('keydown', e => {
   if (mod && k === 'z') { e.preventDefault(); restore(e.shiftKey ? hi + 1 : hi - 1); }
   else if (mod && k === 'y') { e.preventDefault(); restore(hi + 1); }
   else if ((k === 'delete' || k === 'backspace') && sel) removeLayer(sel);
-  else if (k === ' ') { e.preventDefault(); document.activeElement.blur?.(); setPlay(!playing); }
+  else if (k === ' ') { e.preventDefault(); document.activeElement.blur?.(); if (recording) $('recBtn').click(); else if (!counting) setPlay(!playing); }
+  else if (k === 'enter' && !recording && !counting) { e.preventDefault(); document.activeElement.blur?.(); $('recBtn').click(); }
 });
 
 /* ---------- Arrastar e redimensionar no vídeo ---------- */
@@ -177,11 +182,11 @@ const pos = e => {
 };
 cv.onpointerdown = e => {
   const p = pos(e); cv.setPointerCapture(e.pointerId);
-  if (sel && visible(sel) && Math.abs(p.x - (sel.x + sel.w / 2)) < 22 && Math.abs(p.y - (sel.y + sel.h / 2)) < 22) {
+  if (sel && sel.kind !== 'audio' && visible(sel) && Math.abs(p.x - (sel.x + sel.w / 2)) < 22 && Math.abs(p.y - (sel.y + sel.h / 2)) < 22) {
     drag = { mode: 'size', l: sel, d0: Math.hypot(p.x - sel.x, p.y - sel.y), w0: sel.w, h0: sel.h, s0: sel.size };
     return;
   }
-  const hit = [...layers].reverse().find(l => visible(l) && Math.abs(p.x - l.x) <= l.w / 2 && Math.abs(p.y - l.y) <= l.h / 2);
+  const hit = [...layers].reverse().find(l => l.kind !== 'audio' && visible(l) && Math.abs(p.x - l.x) <= l.w / 2 && Math.abs(p.y - l.y) <= l.h / 2);
   select(hit || null);
   if (hit) drag = { mode: 'move', l: hit, dx: p.x - hit.x, dy: p.y - hit.y };
 };
@@ -228,7 +233,7 @@ $('ruler').onpointerdown = e => { $('ruler').setPointerCapture(e.pointerId); scr
 $('ruler').onpointermove = e => { if (e.buttons) scrub(e); };
 
 function seek() {
-  layers.forEach(l => { if (l.kind === 'video' && visible(l)) l.node.currentTime = Math.max(0, t - l.start); });
+  layers.forEach(l => { if ((l.kind === 'video' || l.kind === 'audio') && visible(l)) l.node.currentTime = Math.max(0, t - l.start) % (l.node.duration || 1e9); });
 }
 function setPlay(b) { playing = b; $('playBtn').textContent = b ? '⏸' : '▶'; }
 $('playBtn').onclick = () => setPlay(!playing);
@@ -241,16 +246,38 @@ function camPath(l) {
   else ctx.roundRect(l.x - l.w / 2, l.y - l.h / 2, l.w, l.h, l.shape === 'round' ? 28 : 0);
 }
 function draw(l) {
-  ctx.save(); ctx.globalAlpha = l.opacity ?? 1;
+  ctx.save(); fx(l);
   if (l.kind === 'text') {
-    ctx.font = fontStr(l);
-    const pad = l.box ? l.size * 0.35 : 0;
-    l.w = ctx.measureText(l.text).width + pad * 2; l.h = l.size * 1.2 + pad;
+    const maxW = W * 0.92, padK = l.box ? 0.35 : 0;
+    let fs = l.size, lines = [];
+    const wrap = () => {
+      ctx.font = `${FONTS[l.font]} ${fs}px "${l.font}"`;
+      const lim = maxW - fs * padK * 2; lines = [];
+      l.text.split('\n').forEach(p => {
+        let cur = '';
+        p.split(' ').forEach(w => {
+          const tt = cur ? cur + ' ' + w : w;
+          if (cur && ctx.measureText(tt).width > lim) { lines.push(cur); cur = w; } else cur = tt;
+        });
+        lines.push(cur);
+      });
+    };
+    const widest = () => Math.max(...lines.map(s => ctx.measureText(s).width));
+    wrap();
+    if (widest() > maxW - fs * padK * 2) { fs *= 0.97 * (maxW - fs * padK * 2) / widest(); wrap(); }
+    const pad = fs * padK, lh = fs * 1.2;
+    l.w = widest() + pad * 2; l.h = lines.length * lh + pad;
+    l.x = Math.max(l.w / 2, Math.min(W - l.w / 2, l.x));
+    l.y = Math.max(l.h / 2, Math.min(H - l.h / 2, l.y));
     if (l.box) { ctx.fillStyle = l.box; ctx.beginPath(); ctx.roundRect(l.x - l.w / 2, l.y - l.h / 2, l.w, l.h, 14); ctx.fill(); }
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
-    if (l.stroke) { ctx.lineWidth = l.size * 0.14; ctx.strokeStyle = '#000'; ctx.strokeText(l.text, l.x, l.y); }
-    else if (!l.box) { ctx.shadowColor = 'rgba(0,0,0,.85)'; ctx.shadowBlur = 8; }
-    ctx.fillStyle = l.color; ctx.fillText(l.text, l.x, l.y);
+    if (!l.stroke && !l.box) { ctx.shadowColor = 'rgba(0,0,0,.85)'; ctx.shadowBlur = 8; }
+    ctx.fillStyle = l.color;
+    lines.forEach((s, i) => {
+      const yy = l.y - l.h / 2 + pad / 2 + lh / 2 + i * lh;
+      if (l.stroke) { ctx.lineWidth = fs * 0.14; ctx.strokeStyle = '#000'; ctx.strokeText(s, l.x, yy); }
+      ctx.fillText(s, l.x, yy);
+    });
   } else if (l.node.readyState >= 2 || l.node.readyState === undefined) {
     const x = l.x - l.w / 2, y = l.y - l.h / 2;
     const src = l.chroma ? keyed(l) : l.node;
@@ -260,7 +287,7 @@ function draw(l) {
       if (l.mirror) { ctx.translate(l.x * 2, 0); ctx.scale(-1, 1); }
       if (l.shape === 'circle') { const s = Math.max(m / vw, m / vh); ctx.drawImage(src, l.x - vw * s / 2, l.y - vh * s / 2, vw * s, vh * s); }
       else ctx.drawImage(src, x, y, l.w, l.h);
-      ctx.restore(); ctx.save(); ctx.globalAlpha = l.opacity ?? 1;
+      ctx.restore(); ctx.save(); fx(l);
       if (!l.chroma) { camPath(l); ctx.strokeStyle = '#ffee65'; ctx.lineWidth = 5; ctx.stroke(); }
     } else ctx.drawImage(src, x, y, l.w, l.h);
   }
@@ -286,14 +313,14 @@ function frame(now) {
   }
   layers.forEach(l => {
     const vis = visible(l);
-    if (l.kind === 'video') {
+    if (l.kind === 'video' || l.kind === 'audio') {
       const v = l.node, want = vis && playing; v.volume = l.vol ?? 1;
-      if (want && v.paused && !v.ended) { v.currentTime = Math.max(0, t - l.start); v.play().catch(() => {}); }
+      if (want && v.paused && !v.ended) { v.currentTime = Math.max(0, t - l.start) % (l.kind === 'audio' ? (v.duration || 1e9) : 1e12); v.play().catch(() => {}); }
       else if (!want && !v.paused) v.pause();
     }
-    if (vis) draw(l);
+    if (vis && l.kind !== 'audio') draw(l);
   });
-  if (sel && visible(sel) && !recording) {
+  if (sel && sel.kind !== 'audio' && visible(sel) && !recording) {
     const x = sel.x - sel.w / 2, y = sel.y - sel.h / 2;
     ctx.strokeStyle = '#2962ff'; ctx.lineWidth = 3; ctx.strokeRect(x, y, sel.w, sel.h);
     ctx.fillStyle = '#2962ff'; ctx.fillRect(x + sel.w - 12, y + sel.h - 12, 24, 24);
@@ -316,7 +343,7 @@ $('recBtn').onclick = async () => {
     catch { console.warn('Microfone indisponível.'); }
   }
   layers.forEach(l => {
-    if (l.kind === 'video' && !wired.has(l.node)) {
+    if ((l.kind === 'video' || l.kind === 'audio') && !wired.has(l.node)) {
       wired.add(l.node);
       const s = ac.createMediaElementSource(l.node); s.connect(dest); s.connect(ac.destination);
     }
@@ -325,14 +352,17 @@ $('recBtn').onclick = async () => {
     }
   });
   const stream = new MediaStream([...cv.captureStream(30).getVideoTracks(), ...dest.stream.getAudioTracks()]);
-  const mime = ['video/webm;codecs=vp9,opus', 'video/webm'].find(m => MediaRecorder.isTypeSupported(m));
+  const want = $('fileSel').value === 'mp4';
+  const mime = (want ? ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4'] : []).concat(['video/webm;codecs=vp9,opus', 'video/webm']).find(m => MediaRecorder.isTypeSupported(m));
+  ext = mime && mime.startsWith('video/mp4') ? 'mp4' : 'webm';
+  if (want && ext !== 'mp4') alert('Este navegador não grava MP4. Vai gravar em WebM.');
   chunks = [];
-  mr = new MediaRecorder(stream, mime ? { mimeType: mime } : {});
+  mr = new MediaRecorder(stream, { ...(mime ? { mimeType: mime } : {}), videoBitsPerSecond: Q.bps });
   mr.ondataavailable = e => e.data.size && chunks.push(e.data);
   mr.onstop = () => {
     recording = false; setPlay(false);
     micStream?.getTracks().forEach(x => x.stop());
-    $('recBtn').textContent = '🔴 Gravar';
+    $('recBtn').textContent = '🔴 Gravar (Enter)';
     $('exportBtn').disabled = false;
   };
   counting = true;
@@ -340,14 +370,14 @@ $('recBtn').onclick = async () => {
   counting = false;
   t = 0; seek(); mr.start(1000);
   recording = true; setPlay(true);
-  $('recBtn').textContent = '⏹ Parar gravação';
+  $('recBtn').textContent = '⏹ Parar (Espaço)';
 };
 
 $('exportBtn').onclick = () => {
   if (!chunks.length) return;
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob(chunks, { type: 'video/webm' }));
-  a.download = `reaction-${$('formatSel').value.replace(':', 'x')}.webm`;
+  a.href = URL.createObjectURL(new Blob(chunks, { type: mr.mimeType || 'video/webm' }));
+  a.download = `reaction-${$('formatSel').value.replace(':', 'x')}.${ext}`;
   a.click();
 };
 
@@ -404,3 +434,45 @@ function applyGreen(kind) {
 
 // Celulares não permitem compartilhar a tela pelo navegador: esconde o botão para não parecer quebrado.
 if (!navigator.mediaDevices?.getDisplayMedia) $('screenBtn').style.display = 'none';
+
+/* ---------- Música / áudio de fundo ---------- */
+$('audioInput').onchange = e => {
+  [...e.target.files].forEach(f => {
+    const a = new Audio(); a.loop = true; a.preload = 'auto';
+    a.onloadedmetadata = () => addLayer({ kind: 'audio', name: f.name, node: a, dur: a.duration || 30, w: 0, h: 0, vol: 0.4 });
+    a.src = URL.createObjectURL(f);
+  });
+  e.target.value = '';
+};
+
+/* ---------- Transições e zoom ---------- */
+$('pTrans').onchange = e => { if (sel) { sel.trans = e.target.value; snap(); } };
+$('pZoom').onchange = e => { if (sel) { sel.zoom = e.target.value; snap(); } };
+$('pZoomAmt').oninput = e => { if (sel) sel.zoomAmt = e.target.value / 100; };
+$('pZoomAmt').addEventListener('change', snap);
+
+// Aplica opacidade, transição (0,5s no começo e no fim do bloco) e zoom ao redor do centro da camada.
+function fx(l) {
+  const u = t - l.start, rem = l.start + l.dur - t;
+  let a = l.opacity ?? 1, tx = 0, ty = 0, sc = 1;
+  const p = Math.max(0, Math.min(1, u / 0.5, rem / 0.5)), e = 1 - Math.pow(1 - p, 3), k = 1 - e;
+  switch (l.trans) {
+    case 'fade': a *= e; break;
+    case 'pop': a *= e; sc = 0.5 + 0.5 * e; break;
+    case 'up': a *= e; ty = k * H * 0.3; break;
+    case 'left': a *= e; tx = -k * W * 0.3; break;
+    case 'right': a *= e; tx = k * W * 0.3; break;
+  }
+  const amt = l.zoomAmt ?? 0.3, z = l.dur > 1e8 ? (u % 6) / 6 : Math.min(1, Math.max(0, u / l.dur));
+  if (l.zoom === 'in') sc *= 1 + amt * z;
+  else if (l.zoom === 'out') sc *= 1 + amt * (1 - z);
+  else if (l.zoom === 'pulse') sc *= 1 + amt * 0.2 * (0.5 + 0.5 * Math.sin(u * 5));
+  ctx.globalAlpha = a;
+  ctx.translate(l.x + tx, l.y + ty); ctx.scale(sc, sc); ctx.translate(-l.x, -l.y);
+}
+
+/* ---------- Qualidade de gravação ---------- */
+$('qualSel').onchange = e => {
+  Q = QUAL[e.target.value]; resScale = Q.res;
+  $('formatSel').onchange({ target: $('formatSel') });
+};
